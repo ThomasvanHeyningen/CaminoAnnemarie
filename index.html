@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Buen Camino lieverd</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐚</text></svg>" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #F5F0E8; }
+    @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    ::-webkit-scrollbar { height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #E6DDD0; border-radius: 3px; }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useCallback, useRef } = React;
+
+    // ─── CONFIG ──────────────────────────────────────────────────────────────
+    const CAMINO_START = new Date(2026, 1, 15); // April 15, 2026
+    const TOTAL_KM = 772.5;
+    const TOTAL_DAYS = 36;
+
+    // ─── LANDMARKS ───────────────────────────────────────────────────────────
+    const LANDMARKS = [
+      { name: "Saint-Jean-Pied-de-Port", km: 0, emoji: "🏔️" },
+      { name: "Roncesvalles", km: 25, emoji: "⛪" },
+      { name: "Pamplona", km: 67, emoji: "🐂" },
+      { name: "Puente la Reina", km: 91, emoji: "🌉" },
+      { name: "Estella", km: 113, emoji: "⭐" },
+      { name: "Logroño", km: 162.5, emoji: "🍷" },
+      { name: "Nájera", km: 191.5, emoji: "🏰" },
+      { name: "Santo Domingo", km: 212.5, emoji: "🐓" },
+      { name: "Burgos", km: 285.5, emoji: "⛪" },
+      { name: "Frómista", km: 351.5, emoji: "🌾" },
+      { name: "Carrión de los Condes", km: 370.5, emoji: "🕊️" },
+      { name: "León", km: 464, emoji: "🦁" },
+      { name: "Astorga", km: 513, emoji: "🍫" },
+      { name: "Ponferrada", km: 565.5, emoji: "🏰" },
+      { name: "O Cebreiro", km: 617.5, emoji: "🌿" },
+      { name: "Sarria", km: 657, emoji: "📜" },
+      { name: "Portomarín", km: 679.5, emoji: "🌊" },
+      { name: "Arzúa", km: 733.5, emoji: "🧀" },
+      { name: "Santiago de Compostela", km: 772.5, emoji: "⭐" },
+    ];
+
+    function getCurrentLandmark(totalKm) {
+      let last = LANDMARKS[0];
+      for (const lm of LANDMARKS) { if (totalKm >= lm.km) last = lm; else break; }
+      return last;
+    }
+    function getNextLandmark(totalKm) {
+      for (const lm of LANDMARKS) { if (lm.km > totalKm) return lm; }
+      return LANDMARKS[LANDMARKS.length - 1];
+    }
+
+    const FACTS = [
+      "The Camino Francés has been walked for over 1,000 years, making it one of the oldest pilgrimage routes in the world.",
+      "Pilgrims carry a 'credencial' — a passport stamped at each stop — to prove they walked the route and earn their Compostela certificate.",
+      "The scallop shell is the symbol of the Camino. Its lines converging at a single point represent the many routes merging toward Santiago.",
+      "Over 300,000 pilgrims complete the Camino each year, arriving from more than 100 countries.",
+      "The name 'Compostela' may derive from the Latin 'campus stellae' — field of stars — referencing a vision that led to the discovery of St. James' tomb.",
+      "The Cruz de Ferro (Iron Cross) is one of the Camino's most iconic landmarks. Pilgrims leave a stone from home at its base as a symbolic release.",
+      "Medieval pilgrims walked the Camino barefoot as an act of penance. Today, good boots are highly recommended!",
+      "The Meseta — the vast central plateau of Spain — is known for its solitude and is where many pilgrims experience the deepest self-reflection.",
+      "Botafumeiro, the giant incense burner in Santiago's cathedral, weighs 80 kg and swings from ceiling to ceiling, originally used to mask the smell of weary pilgrims.",
+      "Hospitaleros are the volunteers who run many pilgrim hostels along the route, offering care and kindness to strangers.",
+      "Legend says that if you find a stone with a natural cross pattern, it's a gift from Santiago himself.",
+      "The Camino crosses the Pyrenees on its very first day — one of the most dramatic and challenging stages of the entire route.",
+      "Pamplona, famous for its Running of the Bulls festival, has welcomed Camino pilgrims since the Middle Ages.",
+      "The wine fountain at Bodegas Irache near Estella offers free wine to passing pilgrims — one of the Camino's most beloved surprises.",
+      "Burgos Cathedral, a UNESCO World Heritage Site, took over 300 years to complete and houses the tomb of El Cid.",
+      "The Meseta between Burgos and León stretches nearly 200 km of flat, open terrain — a walking meditation through golden wheat fields.",
+      "León's cathedral is called the 'House of Light' because of its 1,800 square meters of stained glass windows.",
+      "Astorga is famous for its Gaudí-designed palace, one of the few Gaudí buildings outside of Catalonia.",
+      "The climb to O Cebreiro takes you into Galicia, where the language, food, and landscape shift dramatically.",
+      "Galician 'pulpo a feira' (fair-style octopus) with paprika and olive oil is the ultimate Camino comfort food.",
+      "The last 100 km from Sarria is the minimum walking distance required to earn a Compostela — that's why this section is the busiest.",
+      "At the Praza do Obradoiro in Santiago, pilgrims traditionally touch the central pillar of the cathedral's Portico of Glory.",
+      "The yellow arrows marking the Camino were first painted by a parish priest named Don Elías Valiña in the 1980s.",
+      "Many pilgrims continue 88 km past Santiago to Finisterre — once believed to be the literal end of the earth.",
+      "The tradition of sharing food and stories at communal pilgrim dinners is one of the most cherished Camino rituals.",
+      "The word 'pilgrim' comes from the Latin 'peregrinus' — meaning foreigner or traveler.",
+      "'Buen Camino!' is the universal greeting on the trail, meaning 'good way' or 'good journey.'",
+      "Romanesque churches along the Camino were built in the 11th–12th centuries as spiritual rest stops for medieval pilgrims.",
+      "The Milky Way was once believed to point the way to Santiago — the Spanish name echoes 'the way of the stars.'",
+      "Many pilgrims say the Camino doesn't end in Santiago — the real journey is carrying its lessons back into everyday life.",
+      "The Portico of Glory at Santiago Cathedral was carved by Master Mateo in 1188 — a masterpiece of Romanesque sculpture.",
+      "After arriving in Santiago, pilgrims can attend the Pilgrim's Mass at noon, where their nationalities and starting points are announced.",
+      "The Camino teaches an ancient truth: you don't need to know the whole path — just the next step.",
+      "Rest days are part of the Camino. Even medieval pilgrims took breaks to heal blisters and restore their spirits.",
+      "The friends you make on the Camino are called your 'Camino family' — bonds forged in shared steps and sunsets.",
+    ];
+
+    const REFLECTIONS = [
+      "What are you carrying — physically and emotionally — that you could set down today?",
+      "Think of someone who believed in you before you believed in yourself. What would you say to them now?",
+      "What does 'home' mean to you — and has that meaning shifted as you've walked?",
+      "If your younger self could see you right now, mid-Camino, what would surprise them most?",
+      "What is one fear you've been avoiding? Imagine walking straight toward it today.",
+      "Describe the version of yourself you want to be when you finish this journey.",
+      "What relationship in your life deserves more honesty? What would you say?",
+      "When was the last time you felt completely free? What made that moment possible?",
+      "What story do you keep telling yourself that might no longer be true?",
+      "If you had to describe your life's purpose in a single sentence today, what would it be?",
+      "What does forgiveness feel like in your body? Is there someone — including yourself — you're ready to forgive?",
+      "Think about a time you failed. What gift did that failure eventually bring you?",
+      "What would you do if you knew — truly knew — that you were enough?",
+      "Who do you miss right now? Let yourself feel it fully.",
+      "What are three things about yourself that you've come to accept on this walk?",
+      "If the path behind you is a metaphor for your past, what does it look like? What about the path ahead?",
+      "What are you grateful for that you usually take completely for granted?",
+      "What would you need to let go of to feel truly at peace?",
+      "Think of someone you've met on the Camino. What have they reflected back to you about yourself?",
+      "If today were your last day on the Camino, what would you want to remember most?",
+      "What part of your identity are you most attached to? What happens if you loosen that grip?",
+      "What does courage look like in your everyday life, not just in grand gestures?",
+      "What boundaries do you need to set — or dissolve — when you return home?",
+      "Close your eyes and listen. What is the Camino trying to tell you today?",
+      "What have you learned about your own strength that you didn't know before this walk?",
+      "What does love look like when you strip away expectation and obligation?",
+      "Imagine your life five years from now. What choices made today lead to that future?",
+      "What are you most proud of that no one else knows about?",
+      "What does it mean to be brave when no one is watching?",
+      "What part of this journey has been the hardest — and what has it taught you?",
+      "What would the world look like if you stopped waiting for permission to be yourself?",
+      "As you near the end, what promise will you make to yourself — and actually keep?",
+      "You walked across a country. You arrived. Now: what begins?",
+      "A rest day is still a Camino day. What does stillness teach you that movement cannot?",
+      "Looking back at every step — which single moment changed you the most?",
+    ];
+
+    const PHOTO_PLACEHOLDERS = [
+      { id: 1, caption: "", src: "photo1.jpg"},
+      { id: 2, caption: "", src: "photo2.jpg" },
+      { id: 3, caption: "", src: "photo3.JPEG" },
+    ];
+
+    // ─── HELPERS ─────────────────────────────────────────────────────────────
+    function getDayIndex(date) {
+      const s = new Date(CAMINO_START); s.setHours(0,0,0,0);
+      const d = new Date(date); d.setHours(0,0,0,0);
+      return Math.floor((d - s) / 864e5);
+    }
+    function formatDate(dayIndex) {
+      const d = new Date(CAMINO_START);
+      d.setDate(d.getDate() + dayIndex);
+      return d.toLocaleDateString("nl-NL", { weekday: "long", month: "long", day: "numeric" });
+    }
+    function shortDate(dayIndex) {
+      const d = new Date(CAMINO_START);
+      d.setDate(d.getDate() + dayIndex);
+      return d.toLocaleDateString("nl-NL", { month: "short", day: "numeric" });
+    }
+
+    // ─── PALETTE ─────────────────────────────────────────────────────────────
+    const P = {
+      bg: "#F5F0E8", card: "#FFFDF7", accent: "#C4713B", accentLight: "#E8A76C",
+      accentPale: "#F5DCC4", text: "#3B2F26", textMuted: "#8C7B6B", border: "#E6DDD0",
+      shell: "#D4A76A", green: "#6B8F5E", greenLight: "#E8F0E4", locked: "#C8BBAA",
+    };
+
+    // ─── STORAGE (localStorage for GitHub Pages) ─────────────────────────────
+    const STORAGE_KEY = "camino-km-log";
+    function loadLog() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+      catch { return {}; }
+    }
+    function saveLog(log) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(log)); } catch {}
+    }
+
+    // ─── COMPONENTS ──────────────────────────────────────────────────────────
+
+    function ShellIcon({ size = 24, color = P.shell }) {
+      return (
+        <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
+          <path d="M20 4C20 4 6 16 6 26C6 32 12 36 20 36C28 36 34 32 34 26C34 16 20 4 20 4Z" fill={color} opacity="0.2"/>
+          <path d="M20 4C20 4 6 16 6 26C6 32 12 36 20 36C28 36 34 32 34 26C34 16 20 4 20 4Z" stroke={color} strokeWidth="2" strokeLinecap="round"/>
+          <path d="M20 4V36" stroke={color} strokeWidth="1.5" opacity="0.5"/>
+          <path d="M20 4C20 4 12 18 8 30" stroke={color} strokeWidth="1" opacity="0.4"/>
+          <path d="M20 4C20 4 28 18 32 30" stroke={color} strokeWidth="1" opacity="0.4"/>
+          <path d="M20 4C20 4 15 20 14 34" stroke={color} strokeWidth="1" opacity="0.3"/>
+          <path d="M20 4C20 4 25 20 26 34" stroke={color} strokeWidth="1" opacity="0.3"/>
+        </svg>
+      );
+    }
+
+    function KmInput({ dayIndex, kmLog, onSave }) {
+      const existing = kmLog[dayIndex];
+      const [val, setVal] = useState(existing != null ? String(existing) : "");
+      const [editing, setEditing] = useState(existing == null);
+
+      useEffect(() => {
+        const v = kmLog[dayIndex];
+        setVal(v != null ? String(v) : "");
+        setEditing(v == null);
+      }, [dayIndex, kmLog]);
+
+      const handleSave = () => {
+        const num = parseFloat(val);
+        if (isNaN(num) || num < 0) return;
+        onSave(dayIndex, Math.round(num * 10) / 10);
+        setEditing(false);
+      };
+
+      if (!editing && existing != null) {
+        return (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 12, background: P.greenLight,
+            borderRadius: 14, padding: "14px 20px"
+          }}>
+            <span style={{ fontSize: 22 }}>🥾</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: P.green }}>
+                {existing} km
+              </div>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: P.textMuted }}>
+                {existing === 0 ? "Rest day — your feet thank you!" : "gewandeld vandaag"}
+              </div>
+            </div>
+            <button onClick={() => setEditing(true)} style={{
+              background: "none", border: "1px solid " + P.green + "44", borderRadius: 8,
+              padding: "6px 14px", color: P.green, cursor: "pointer",
+              fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 600
+            }}>Edit</button>
+          </div>
+        );
+      }
+
+      return (
+        <div style={{
+          background: P.accentPale + "44", borderRadius: 14, padding: "18px 20px",
+          border: "2px dashed " + P.accentLight
+        }}>
+          <div style={{
+            fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600,
+            color: P.accent, marginBottom: 10
+          }}>Hoe ver heb je vandaag gewandeld?</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              type="number" min="0" max="60" step="0.1"
+              value={val}
+              onChange={(e) => setVal(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSave()}
+              placeholder="0"
+              style={{
+                flex: 1, padding: "12px 16px", borderRadius: 10, border: "1px solid " + P.border,
+                fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700,
+                color: P.text, background: P.card, outline: "none", width: "100%"
+              }}
+            />
+            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: P.textMuted, fontWeight: 600 }}>km</span>
+            <button onClick={handleSave} style={{
+              background: P.accent, color: "#fff", border: "none", borderRadius: 10,
+              padding: "12px 22px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+              fontSize: 14, fontWeight: 700, whiteSpace: "nowrap"
+            }}>Save</button>
+          </div>
+          <div style={{
+            fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: P.textMuted,
+            marginTop: 8, fontStyle: "italic"
+          }}>Voer 0 in voor een rust dag — rust is ook onderdeel van de reis 🌿</div>
+        </div>
+      );
+    }
+
+    function ProgressTracker({ kmLog, dayIndex }) {
+      const totalWalked = Object.values(kmLog).reduce((s, v) => s + (v || 0), 0);
+      const pct = Math.min((totalWalked / TOTAL_KM) * 100, 100);
+      const current = getCurrentLandmark(totalWalked);
+      const next = getNextLandmark(totalWalked);
+      const daysWalked = Object.values(kmLog).filter(v => v > 0).length;
+      const avgKm = daysWalked > 0 ? (totalWalked / daysWalked).toFixed(1) : "—";
+      const remaining = Math.max(0, TOTAL_KM - totalWalked);
+      const todayKm = kmLog[dayIndex] || 0;
+
+      return (
+        <div style={{
+          background: "linear-gradient(135deg, " + P.card + ", " + P.accentPale + "22)",
+          borderRadius: 20, padding: "28px 24px", border: "1px solid " + P.border,
+          position: "relative", overflow: "hidden"
+        }}>
+          <div style={{ position: "absolute", top: -30, right: -20, opacity: 0.06, fontSize: 140 }}>🐚</div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, position: "relative" }}>
+            <div>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 2, color: P.textMuted, marginBottom: 6 }}>Dichtbij</div>
+              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: P.text }}>
+                {current.emoji} {current.name}
+              </div>
+              {totalWalked < TOTAL_KM && (
+                <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: P.textMuted, marginTop: 4 }}>
+                  Volgende: {next.emoji} {next.name} — nog {(next.km - totalWalked).toFixed(1)} km wandelen
+                </div>
+              )}
+            </div>
+            <div style={{ textAlign: "right", flexShrink: 0 }}>
+              <div style={{ fontSize: 32, fontWeight: 700, fontFamily: "'Playfair Display', serif", color: P.accent }}>
+                {totalWalked.toFixed(1)} <span style={{ fontSize: 14, fontWeight: 400 }}>km</span>
+              </div>
+              <div style={{ color: P.textMuted, fontSize: 12, fontFamily: "'DM Sans', sans-serif" }}>van de {TOTAL_KM} km</div>
+            </div>
+          </div>
+
+          <div style={{
+            background: P.border, borderRadius: 12, height: 20, overflow: "hidden",
+            position: "relative", boxShadow: "inset 0 2px 4px rgba(0,0,0,0.06)"
+          }}>
+            <div style={{
+              height: "100%", borderRadius: 12, width: pct + "%",
+              background: "linear-gradient(90deg, " + P.green + ", " + P.accentLight + ")",
+              transition: "width 0.8s ease", position: "relative", minWidth: pct > 0 ? 28 : 0
+            }}>
+              <div style={{ position: "absolute", right: -4, top: -4, animation: "pulse 2s infinite" }}>
+                <ShellIcon size={28} color="#fff" />
+              </div>
+            </div>
+          </div>
+          <div style={{
+            display: "flex", justifyContent: "space-between", marginTop: 8,
+            fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: P.textMuted
+          }}>
+            <span>St-Jean</span>
+            <span style={{ fontWeight: 700, color: P.green }}>{pct.toFixed(1)}%</span>
+            <span>Santiago</span>
+          </div>
+
+          <div style={{ position: "relative", height: 20, marginTop: 4, marginBottom: 8 }}>
+            {LANDMARKS.filter((_, i) => i > 0 && i < LANDMARKS.length - 1).map((lm) => {
+              const left = (lm.km / TOTAL_KM) * 100;
+              const reached = totalWalked >= lm.km;
+              return (
+                <div key={lm.name} title={lm.name} style={{
+                  position: "absolute", left: left + "%", top: 0, transform: "translateX(-50%)",
+                  fontSize: 10, opacity: reached ? 0.9 : 0.25, transition: "opacity 0.5s"
+                }}>{lm.emoji}</div>
+              );
+            })}
+          </div>
+
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginTop: 12 }}>
+            {[
+              { label: "Vandaag", value: todayKm > 0 ? todayKm + " km" : "—" },
+              { label: "Dagen gewandeld", value: daysWalked },
+              { label: "Gemiddelde / dag", value: avgKm === "—" ? "—" : avgKm + " km" },
+              { label: "Over", value: remaining.toFixed(1) + " km" },
+            ].map((s, i) => (
+              <div key={i} style={{
+                background: P.greenLight, padding: "8px 14px", borderRadius: 10,
+                textAlign: "center", minWidth: 72, flex: "1 1 0"
+              }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: P.green, fontFamily: "'Playfair Display', serif" }}>{s.value}</div>
+                <div style={{ fontSize: 10, color: P.textMuted, marginTop: 2, fontFamily: "'DM Sans', sans-serif" }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function FactCard({ dayIndex }) {
+      const fact = FACTS[dayIndex % FACTS.length];
+      return (
+        <div style={{
+          background: "linear-gradient(145deg, " + P.accent + ", " + P.accentLight + ")",
+          borderRadius: 20, padding: "24px 28px", color: "#fff", position: "relative", overflow: "hidden"
+        }}>
+          <div style={{ position: "absolute", bottom: -20, right: -10, fontSize: 100, opacity: 0.1 }}>🐚</div>
+          <div style={{
+            fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700,
+            textTransform: "uppercase", letterSpacing: 2, opacity: 0.8, marginBottom: 10
+          }}>Camino Feitje — Dag {dayIndex + 1}</div>
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, lineHeight: 1.7 }}>{fact}</div>
+        </div>
+      );
+    }
+
+    function ReflectionCard({ dayIndex }) {
+      const reflection = REFLECTIONS[dayIndex % REFLECTIONS.length];
+      return (
+        <div style={{
+          background: P.card, borderRadius: 20, padding: "24px 28px",
+          border: "1px solid " + P.border, position: "relative", overflow: "hidden"
+        }}>
+          <div style={{ position: "absolute", top: 14, right: 22, fontSize: 48, opacity: 0.08, fontFamily: "'Playfair Display', serif" }}>"</div>
+          <div style={{
+            fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700,
+            textTransform: "uppercase", letterSpacing: 2, color: P.green, marginBottom: 12
+          }}>✦ Vraag van de dag</div>
+          <div style={{
+            fontFamily: "'Playfair Display', serif", fontSize: 17, lineHeight: 1.7,
+            color: P.text, fontStyle: "italic"
+          }}>{reflection}</div>
+        </div>
+      );
+    }
+
+    function PhotoGallery() {
+      return (
+        <div style={{
+          background: P.card, borderRadius: 20, padding: "24px 28px",
+          border: "1px solid " + P.border
+        }}>
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: P.text, marginBottom: 16 }}>📸 Wij</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+            {PHOTO_PLACEHOLDERS.map((p) => (
+              <div key={p.id} style={{
+                aspectRatio: "1", borderRadius: 14, border: "2px dashed " + P.border,
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                backgroundImage: "url(" + p.src + ")",
+                backgroundPosition: 'center',
+                backgroundSize: 'cover',
+                backgroundRepeat: 'no-repeat'
+              }}>
+              </div>
+            ))}
+          </div>
+          <div style={{ textAlign: "center", marginTop: 14, color: P.textMuted, fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontStyle: "italic" }}>
+          </div>
+        </div>
+      );
+    }
+
+    function DayStrip({ currentDay, viewingDay, onSelectDay, kmLog }) {
+      const ref = useRef(null);
+      const days = [];
+      for (let i = 0; i <= Math.min(currentDay, TOTAL_DAYS - 1); i++) days.push(i);
+
+      useEffect(() => {
+        if (ref.current) {
+          const active = ref.current.querySelector('[data-active="true"]');
+          if (active) active.scrollIntoView({ inline: "center", behavior: "smooth", block: "nearest" });
+        }
+      }, [viewingDay]);
+
+      return (
+        <div ref={ref} style={{
+          display: "flex", gap: 4, overflowX: "auto", paddingBottom: 8, marginBottom: 8,
+          WebkitOverflowScrolling: "touch"
+        }}>
+          {days.map((d) => {
+            const active = d === viewingDay;
+            const hasKm = kmLog[d] != null;
+            return (
+              <button
+                key={d} data-active={active ? "true" : undefined}
+                onClick={() => onSelectDay(d)}
+                style={{
+                  minWidth: 44, height: 48, borderRadius: 10, border: "none",
+                  background: active ? P.accent : P.accentPale,
+                  color: active ? "#fff" : P.accent,
+                  fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 700,
+                  cursor: "pointer", transition: "all 0.2s", flexShrink: 0,
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1,
+                  position: "relative"
+                }}
+              >
+                <span>{d + 1}</span>
+                <span style={{ fontSize: 8, opacity: 0.7, fontWeight: 400 }}>{shortDate(d)}</span>
+                {hasKm && (
+                  <div style={{
+                    position: "absolute", top: 3, right: 3, width: 6, height: 6,
+                    borderRadius: "50%", background: active ? "#fff" : P.green
+                  }} />
+                )}
+              </button>
+            );
+          })}
+          <div style={{
+            minWidth: 44, height: 48, borderRadius: 10, background: P.border,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 14, opacity: 0.35, flexShrink: 0
+          }}>🔒</div>
+        </div>
+      );
+    }
+
+    function DayNav({ currentDay, viewingDay, onSelectDay }) {
+      const canPrev = viewingDay > 0;
+      const canNext = viewingDay < currentDay;
+      return (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 24, flexWrap: "wrap" }}>
+          <button onClick={() => canPrev && onSelectDay(viewingDay - 1)} disabled={!canPrev} style={{
+            background: canPrev ? P.accent : P.locked, color: "#fff", border: "none", borderRadius: 10,
+            padding: "9px 16px", cursor: canPrev ? "pointer" : "not-allowed",
+            fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600,
+            opacity: canPrev ? 1 : 0.35, transition: "all 0.2s"
+          }}>← Prev</button>
+
+          <div style={{
+            fontFamily: "'Playfair Display', serif", fontSize: 15, color: P.text,
+            textAlign: "center", minWidth: 180
+          }}>
+            {formatDate(viewingDay)}
+            {viewingDay === currentDay && (
+              <span style={{
+                display: "inline-block", marginLeft: 8, background: P.green,
+                color: "#fff", fontSize: 9, padding: "2px 7px", borderRadius: 20,
+                fontFamily: "'DM Sans', sans-serif", fontWeight: 600, verticalAlign: "middle"
+              }}>TODAY</span>
+            )}
+          </div>
+
+          <button onClick={() => canNext && onSelectDay(viewingDay + 1)} disabled={!canNext} style={{
+            background: canNext ? P.accent : P.locked, color: "#fff", border: "none", borderRadius: 10,
+            padding: "9px 16px", cursor: canNext ? "pointer" : "not-allowed",
+            fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600,
+            opacity: canNext ? 1 : 0.35, transition: "all 0.2s"
+          }}>Next →</button>
+        </div>
+      );
+    }
+
+    // ─── MAIN APP ────────────────────────────────────────────────────────────
+    function CaminoCompanion() {
+      const todayIdx = getDayIndex(new Date());
+      const currentDay = Math.max(0, Math.min(todayIdx, TOTAL_DAYS - 1));
+      const [viewingDay, setViewingDay] = useState(currentDay);
+      const [kmLog, setKmLog] = useState(() => loadLog());
+
+      const handleSaveKm = useCallback((day, km) => {
+        setKmLog(prev => {
+          const updated = { ...prev, [day]: km };
+          saveLog(updated);
+          return updated;
+        });
+      }, []);
+
+      const beforeStart = todayIdx < 0;
+
+      return (
+        <div style={{ minHeight: "100vh", background: P.bg, fontFamily: "'DM Sans', sans-serif" }}>
+          {/* Header */}
+          <div style={{
+            background: "linear-gradient(160deg, " + P.text + " 0%, #5C483A 100%)",
+            padding: "36px 20px 28px", textAlign: "center", position: "relative", overflow: "hidden"
+          }}>
+            <div style={{
+              position: "absolute", inset: 0, opacity: 0.04,
+              backgroundImage: "radial-gradient(circle at 20% 50%, " + P.shell + " 1px, transparent 1px), radial-gradient(circle at 80% 50%, " + P.shell + " 1px, transparent 1px)",
+              backgroundSize: "40px 40px"
+            }} />
+            <div style={{ position: "relative" }}>
+              <div style={{ marginBottom: 6 }}><ShellIcon size={40} color={P.shell} /></div>
+              <h1 style={{
+                fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700,
+                color: "#fff", letterSpacing: "-0.02em", marginBottom: 2
+              }}>Buen Camino, Lieverd</h1>
+              <p style={{ color: P.accentLight, fontSize: 14, fontFamily: "'DM Sans', sans-serif", opacity: 0.85 }}>
+                Enorm trots op dat je dit doet, veel plezier weer vandaag!❤️
+              </p>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div style={{ maxWidth: 620, margin: "0 auto", padding: "20px 14px 60px" }}>
+            {beforeStart ? (
+              <div style={{
+                background: P.card, borderRadius: 20, padding: 36, textAlign: "center",
+                border: "1px solid " + P.border
+              }}>
+                <div style={{ fontSize: 48, marginBottom: 14 }}>🐚</div>
+                <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, color: P.text, marginBottom: 10 }}>
+                  The Camino Awaits
+                </h2>
+                <p style={{ color: P.textMuted, lineHeight: 1.7, fontSize: 15 }}>
+                  Your journey begins on {formatDate(0)}. Come back then to unlock your first day!
+                </p>
+              </div>
+            ) : (
+              <React.Fragment>
+                <DayStrip currentDay={currentDay} viewingDay={viewingDay} onSelectDay={setViewingDay} kmLog={kmLog} />
+                <DayNav currentDay={currentDay} viewingDay={viewingDay} onSelectDay={setViewingDay} />
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 18, animation: "fadeIn 0.4s ease" }} key={viewingDay}>
+                  <KmInput dayIndex={viewingDay} kmLog={kmLog} onSave={handleSaveKm} />
+                  <ProgressTracker kmLog={kmLog} dayIndex={viewingDay} />
+                  <FactCard dayIndex={viewingDay} />
+                  <ReflectionCard dayIndex={viewingDay} />
+                  <PhotoGallery />
+                </div>
+              </React.Fragment>
+            )}
+
+            <div style={{
+              textAlign: "center", marginTop: 36, color: P.textMuted,
+              fontSize: 12, fontFamily: "'DM Sans', sans-serif"
+            }}>
+              Made with love · Camino Francés · 772.5 km of heart and soul
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<CaminoCompanion />);
+  </script>
+</body>
+</html>
