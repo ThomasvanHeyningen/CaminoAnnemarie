@@ -28,9 +28,9 @@
     const { useState, useEffect, useCallback, useRef } = React;
 
     // ─── CONFIG ──────────────────────────────────────────────────────────────
-    const CAMINO_START = new Date(2026, 1, 15); // April 15, 2026
+    const CAMINO_START = new Date(2026, 4, 26); // April 15, 2026
     const TOTAL_KM = 772.5;
-    const TOTAL_DAYS = 36;
+    const TOTAL_DAYS = 37;
 
     // ─── LANDMARKS ───────────────────────────────────────────────────────────
     const LANDMARKS = [
@@ -573,10 +573,10 @@
               }}>
                 <div style={{ fontSize: 48, marginBottom: 14 }}>🐚</div>
                 <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, color: P.text, marginBottom: 10 }}>
-                  The Camino Awaits
+                  Het wachten op de start is bijna voorbij!
                 </h2>
                 <p style={{ color: P.textMuted, lineHeight: 1.7, fontSize: 15 }}>
-                  Your journey begins on {formatDate(0)}. Come back then to unlock your first day!
+                  Je reis begint op {formatDate(0)}. Kom dan terug om je eerste dag vrij te spelen!
                 </p>
               </div>
             ) : (
